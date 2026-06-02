@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
+import { ChatProvider } from "@/contexts/ChatContext";
+import PageShell from "@/components/PageShell";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -18,12 +20,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="zh-CN"
-      className={`${geistMono.variable} h-full`}
-    >
+    <html lang="zh-CN" className={`${geistMono.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
-        {children}
+        <ChatProvider>
+          <PageShell>{children}</PageShell>
+        </ChatProvider>
         <div className="scanlines" aria-hidden="true" />
       </body>
     </html>
