@@ -479,56 +479,132 @@ personId + password → LevelDB O(1) get('user:{personId}')
 
 ## Cell 隔离记忆架构
 
-与 ChatGPT 同类设计：每个新对话 Cell 是独立的上下文容器，其他 Cell 的内容不进当前上下文。IWM、显性记忆、面试反馈跨 Cell 累积。
+与 ChatGPT、Claude 等主流大模型产品同构设计：每个对话 Cell 是一个独立的上下文容器，**存储该 Cell 内的完整聊天历史（每条消息都持久化）**。用户打开某个 Cell 时，历史全量加载到前端，可以接着上次继续聊。不同 Cell 之间的聊天历史互相隔离，不进彼此的 LLM 上下文。
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Cell 1 (GNN项目面试)      Cell 2 (随便聊聊)      Cell 3 (新对话)  │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │ 完整聊天记录      │    │ 完整聊天记录      │    │ 空的         │  │
-│  │ (前端显示, 持久化) │    │ (前端显示, 持久化) │    │             │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────┘  │
-│         │                      │                      │         │
-│         └──────────────────────┴──────────────────────┘         │
-│                              │                                   │
-│                    跨 cell 累积 (不进 LLM 上下文)                  │
-│                              │                                   │
-│         ┌────────────────────┼────────────────────┐             │
-│         ▼                    ▼                    ▼             │
+┌──────────────────────────────────────────────────────────────────┐
+│  Cell 1 (GNN面试)           Cell 2 (随便聊聊)        Cell 3 (空)  │
+│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────┐   │
+│  │ 消息1: 你好...     │    │ 消息1: 在吗...     │    │          │   │
+│  │ 消息2: 我是字节...  │    │ 消息2: 嗯嗯       │    │          │   │
+│  │ ...               │    │ ...               │    │          │   │
+│  │ 消息18: 谢谢！     │    │ 消息5: 拜拜        │    │          │   │
+│  │                   │    │                   │    │          │   │
+│  │ 全部持久化在数据库  │    │ 全部持久化在数据库  │    │ 新建即空   │   │
+│  │ 打开 = 全部可见     │    │ 打开 = 全部可见     │    │          │   │
+│  │ 可继续聊,追加消息   │    │ 可继续聊,追加消息   │    │          │   │
+│  └──────────────────┘    └──────────────────┘    └──────────┘   │
+│         │                       │                      │        │
+│         └───────────────────────┴──────────────────────┘        │
+│                                 │                                │
+│                   跨 cell 累积 (不进 LLM 上下文)                   │
+│                                 │                                │
+│         ┌───────────────────────┼────────────────────┐          │
+│         ▼                       ▼                    ▼          │
 │  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐       │
 │  │ IWM Node    │    │ 显性记忆      │    │ 面试反馈      │       │
 │  │ (6 traits)  │    │ (mem表)      │    │ (feedback表)  │       │
 │  │ 跨cell累积   │    │ 跨cell累积    │    │ 仅面试官      │       │
 │  └─────────────┘    └──────────────┘    └──────────────┘       │
 │                                                                  │
-│  每个新 cell 启动时注入 System Prompt (不超 ~1500 tokens):        │
+│  每个 cell 启动时注入 System Prompt (不超 ~1500 tokens):          │
 │    [关系感知] ← IWM 摘要 (~150字)                                 │
 │    [已有记忆] ← 显性记忆 (已有机制)                                │
-│    [上次对话] ← 上一 cell 摘要 (~200字, 存 conv 表)               │
+│    [上次对话] ← 上一 cell 摘要 (~200字, conv 表)                  │
 │                                                                  │
-│  ❌ 不注入: 其他 cell 的完整聊天历史                                │
-└─────────────────────────────────────────────────────────────────┘
+│  ❌ 不注入: 当前 cell 的完整聊天历史之外的任何内容                   │
+│  ✅ 当前 cell 内的所有消息作为 messages[] 传入 LLM                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Cell 数据模型
+
+```typescript
+// Cell 的完整数据结构
+interface CellRecord {
+  cellId: string;                    // "cell-{nanoid}"
+  personId: string;                  // 所属用户
+  title: string;                     // 前端显示标题 ("GNN项目面试")
+  createdAt: string;                 // 创建时间
+  lastMessageAt: string;             // 最后一条消息时间
+  messageCount: number;              // 消息总数
+  isActive: boolean;                 // 是否仍在对话中
+  
+  // 🔑 核心: 该 Cell 内的所有聊天消息, 每条都持久化
+  messages: Message[];               // [{id, role, content, timestamp}, ...]
+  
+  // 可选元数据
+  summary?: string;                  // Cell 结束时生成的摘要 (用于跨 Cell 注入)
+  toolCallsUsed?: string[];          // 本 Cell 调用了哪些工具
+}
+```
+
+### 用户交互流
+
+```
+1. 用户登录 → 前端加载 Cell 列表 (从 conv 表扫描该用户的所有 Cell)
+   左侧显示: [GNN项目面试 (6/7, 18条)] [随便聊聊 (6/10, 5条)] [+ 新对话]
+
+2. 用户点击某个 Cell → 前端加载该 Cell 的 messages[] 全量
+   → 聊天界面显示完整历史
+   → 用户输入新消息 → 追加到 messages[] → 持久化到数据库
+   → 可以无限继续聊下去
+
+3. 用户点击 [+ 新对话] → 创建新 Cell
+   → messages = [] (空白)
+   → System Prompt 注入 IWM 摘要 + 上次 Cell 摘要
+   → 开始全新对话
+
+4. 用户切换到另一个 Cell → 当前 Cell 的消息持久化
+   → 加载另一个 Cell 的 messages[]
+   → 两个 Cell 的上下文完全隔离
+```
+
+### Cell 间上下文隔离
+
+**打开 Cell 1 (GNN面试)**:
+```
+LLM 收到的 messages:
+  [system] ← 七段式 Prompt (含 IWM 摘要 + 上轮摘要, ~1500 tokens)
+  [user]   你好，我是字节的面试官...
+  [assistant] 张三您好～欢迎光临 ✨ ...
+  [user]   能介绍一下你主人的 GNN 项目吗？
+  [assistant] 当然！主人的 GNN 项目是 CAAI-BDSC2023...
+  ... (该 Cell 内全部 18 条消息)
+  
+  Cell 2 的 5 条消息 → ❌ 不在此上下文中
+```
+
+**用户切换到 Cell 2 (随便聊聊)**:
+```
+LLM 收到的 messages:
+  [system] ← 七段式 Prompt (相同 IWM 摘要, 不同上轮摘要)
+  [user]   在吗
+  [assistant] 在的呢～主人不在，但我可以陪你聊 ✨
+  ... (该 Cell 内全部 5 条消息)
+  
+  Cell 1 的 18 条消息 → ❌ 不在此上下文中
 ```
 
 ### 为什么不用全量历史进上下文
 
-1. 上下文膨胀导致 LLM 推理质量下降（注意力稀释）
-2. Token 成本线性增长
-3. 旧对话中的错误/误导信息会污染新对话
+1. **上下文膨胀**: LLM 注意力机制在 >8K tokens 后推理质量下降
+2. **Token 成本**: 每个请求都带全部历史 → 成本线性增长
+3. **信息污染**: 旧对话中的错误/误导信息会干扰新对话
+4. **主流实践**: ChatGPT、Claude 都是 Cell 隔离——他们这样做是有原因的
 
-### 对话摘要
+### Cell 摘要 (跨 Cell 上下文桥梁)
 
-每个 Cell 结束时用独立轻量 LLM 调用生成 ~200 字摘要，存储到 `conv:{personId}:{cellId}`。新 Cell 启动时，只注入最近一个 Cell 的摘要——不是所有历史的摘要。
+每个 Cell 结束时，用独立轻量 LLM 调用生成 ~200 字摘要。新 Cell 启动时，注入上一个 Cell 的摘要（仅一个），让 NaNaGi 在新对话中对"上次聊了什么"有基本认知。
 
 ```typescript
-// Cell 结束时
-async function summarizeCell(messages: AgentMessage[]): Promise<string> {
+async function summarizeCell(messages: Message[]): Promise<string> {
   const response = await fetch(DEEPSEEK_URL, {
     body: JSON.stringify({
       model: "deepseek-chat",
       max_tokens: 300,
       messages: [
-        { role: "system", content: "将对话总结为200字以内的摘要。包含: 对方是谁、聊了什么、任何值得下次参考的信息。" },
+        { role: "system", content: "将对话总结为200字以内的摘要。包含: 对方是谁、聊了什么、值得下次参考的信息。" },
         { role: "user", content: messages.map(m => `${m.role}: ${m.content}`).join('\n') }
       ]
     })
@@ -536,6 +612,32 @@ async function summarizeCell(messages: AgentMessage[]): Promise<string> {
   return response.json().choices[0].message.content;
 }
 ```
+
+### 前端 Cell 列表
+
+```
+┌──────────────────────────────────────────────────────┐
+│  NaNaGi                                     [+新对话] │
+├──────────┬───────────────────────────────────────────┤
+│          │                                           │
+│ 📋 历史   │         Cell 内容区                        │
+│          │                                           │
+│ GNN面试   │  张三: 你好，我是字节的面试官...              │
+│ 6/07     │  NaNaGi: 张三您好～欢迎光临 ✨               │
+│ 18条消息  │  听说您是字节的面试官，做Agent方向的？          │
+│          │  ...                                      │
+│ 随便聊聊  │                                           │
+│ 6/10     │  ┌─────────────────────────────┐          │
+│ 5条消息   │  │ 输入消息...                   │          │
+│          │  └─────────────────────────────┘          │
+│ + 新对话  │                                           │
+│          │                                           │
+└──────────┴───────────────────────────────────────────┘
+```
+- 左侧 Cell 列表，按最后对话时间倒序
+- 点击 Cell → 加载该 Cell 完整 messages[] → 显示全部历史
+- 新建 Cell → 空白对话 + IWM 摘要注入
+- 不同 Cell 上下文完全隔离
 
 ---
 
@@ -798,20 +900,36 @@ Value: {
 }
 ```
 
-### Table 5: `conv` — Cell 会话
+### Table 5: `conv` — Cell 会话 (完整聊天历史)
 
 ```
 Key:   "conv:{personId}:{cellId}"
 Value: {
-  cellId, personId,
-  startedAt, endedAt, messageCount,
-  topicSummary, toolCallsUsed[],
-  emotionStart, emotionEnd,
-  summary (200字对话摘要, 独立LLM生成)
+  cellId:       "cell-a1b2c3",
+  personId:     "guest-V8k3mP2xQr6Z",
+  title:        "GNN项目面试",            // 前端显示标题
+  createdAt:    "2026-06-07T14:30:00Z",
+  lastMessageAt:"2026-06-07T14:52:00Z",
+  messageCount: 18,
+  
+  // 🔑 核心: 该 Cell 内的所有聊天消息, 每条都持久化
+  messages: [
+    { id: "msg-1", role: "user",      content: "你好, 我是字节的面试官...", timestamp: "..." },
+    { id: "msg-2", role: "assistant", content: "张三您好～欢迎光临 ✨...",  timestamp: "..." },
+    { id: "msg-3", role: "user",      content: "能介绍一下GNN项目吗?",     timestamp: "..." },
+    // ... 全部 18 条消息
+  ],
+  
+  // 元数据
+  toolCallsUsed: ["get_project_info", "search_web"],
+  emotionStart:  { happiness: 0.60, ... },  // Cell 开始时的情绪
+  emotionEnd:    { happiness: 0.68, ... },  // Cell 结束时的情绪
+  summary:       "字节面试官张三, 22分钟, 主要讨论GNN冷启动和A/B测试"  // Cell结束后自动生成
 }
 
 额外 Key:
-  "conv:{personId}:last-summary" → 最新 cell 的摘要 (新 cell 注入用)
+  "conv:{personId}:cells" → string[] (该用户的所有 cellId 列表, 用于前端 Cell 列表)
+  "conv:{personId}:last-summary" → string (最新 cell 摘要, 新 cell 注入用)
 ```
 
 ### Table 6: `feedback` — 面试反馈 (仅 guest-iv)
