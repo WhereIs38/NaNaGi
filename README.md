@@ -485,6 +485,54 @@ JD 把 Skills 列为与记忆库、知识库并列的核心模块。当前工具
 | **P3** | 性能量化 + 并发设计 + 上线部署 | 3/6 | 从"项目"变成"产品" |
 | **P4** | 技术博客 + MCP 评估 + 双通道对比 demo | 5 | 面试前 30 分钟可以打开的东西 |
 
+### Block × P-Priority 映射
+
+```
+开发顺序 (Block)           JD优先级 (P)          对齐的JD职责
+────────────────────────────────────────────────────────────────
+Block 0: types.ts          → P1 (社交图引擎)      职责 5 (前沿跟踪)
+Block 1a: configs          → P0 (被 prompts 调)   职责 1 (Skills)
+                            → P1 (被 emotion/planning 调)
+Block 1b: graph.ts         → P1 (社交图引擎)       职责 4/5
+Block 1c: signals.ts       → P1 (情绪引擎前置)     职责 5
+Block 1d: ambient-context  → P1 (环境感知)         职责 5
+Block 1e: memory-inner     → P1 (隐形记忆)         职责 5
+Block 2a: emotion.ts       → P1 (情绪引擎)         职责 5
+Block 2b: planning.ts      → P1 (社交规划)         职责 2/5
+Block 2c: filter.ts        → P1 (人格过滤)         职责 5
+Block 2d: inner-voice.ts   → P1 (内心独白)         职责 5
+Block 3a: agent/types      → P0 (ReAct前置)        职责 1
+Block 3a: agent/registry   → P0 (工具注册表)       职责 1
+Block 3a: agent/tools/     → P0 (9工具实现)        职责 1/2
+Block 3b: agent/prompts    → P0 (双通道Prompt)     职责 1
+Block 3c: agent/loop       → P0 (ReAct+容灾)       职责 1/2/3
+Block 4: route.ts+middle   → P0 (集成)             职责 1/3
+────────────────────────────────────────────────────────────────
+(新) 展厅内容填充           → P2                    职责 1 (知识库)
+(新) 性能量化+上线          → P3                    职责 3/6
+(新) 博客+MCP+demo         → P4                    职责 5
+```
+
+### 执行路线
+
+```
+Week 1 — P0 (JD 职责 1/2/3, 最低面试门槛):
+  Block 3a (部分) → Block 1a (仅configs) → Block 3b → Block 3c → Block 4
+  产出: ReAct循环 + 9工具 + 三层容灾 + 双通道Prompt + route.ts瘦身
+
+Week 2 — P1 (JD 职责 4/5, 差异化和框架解耦):
+  Block 0 (完整) → Block 1b/c/d/e → Block 2a/b/c/d
+  产出: 社交图引擎 + OCC情绪 + AmbientContext + 内心独白
+
+Week 3 — P2 (JD 职责 1, 知识库):
+  三个展厅结构化数据填充
+  产出: Agent能回答"南志锦做了什么项目"
+
+上线前 — P3/P4 (JD 职责 3/5/6):
+  性能量化 + 并发设计 + 部署 + 博客 + demo
+  产出: 产品闭环
+```
+
 ---
 
 ## 文件结构
