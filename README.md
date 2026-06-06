@@ -1172,6 +1172,173 @@ Week 3 — P2 (JD 职责 1, 知识库):
   产出: 产品闭环
 ```
 
+> 以上为 2026-06-07 制定的 Block×P 映射与 P0-P4 路线。保留作为历史参考。
+> 以下为 2026-06-07 更新的 Phase 1-8 实施计划，对齐 v5.1 完整设计。
+
+---
+
+## 实施计划 v5.1：8 阶段 × 31 任务
+
+### Phase 1: Agent Engine `🔴 当前 — 最低面试门槛`
+
+让娜娜吉成为真正的 Agent：ReAct 多轮循环、9 工具注册表、三层容灾、双通道 System Prompt。
+
+```
+#23 P1-1 agent/types.ts — Agent 核心类型 (60行)
+       │
+       ├── #24 P1-2 personality/configs/ — 双通道参数 (120行)
+       │         │
+       ├── #25 P1-3 agent/registry.ts — 工具注册表 (40行)
+       │         │
+       │         └── #26 P1-4 agent/tools/ — 9个工具 (350行)
+       │                    │
+       │                    └──────┐
+       │                           │
+       └── ── ── ── ── ── ── ── ──│─ ── ─┘
+                                   │
+                            #27 P1-5 agent/prompts.ts — 七段式Prompt (150行)
+                                   │
+                            ┌──────┘
+                            ▼
+                     #28 P1-6 agent/loop.ts — ReAct循环+三层容灾 (200行)
+                            │
+                            ▼
+                     #29 P1-7 middleware + route.ts — 集成 (644→80行)
+```
+
+| 任务 | 文件 | 行数 | 产出 |
+|------|------|------|------|
+| P1-1 | `agent/types.ts` | 60 | AgentMessage, ToolCall, AgentContext 等核心类型 |
+| P1-2 | `personality/configs/{guest,admin}.ts` | 120 | 角色描述/称呼/钳制/目标/策略/行为准则 |
+| P1-3 | `agent/registry.ts` | 40 | register/get/list/execute — 工具注册表 |
+| P1-4 | `agent/tools/*.ts` (9文件) | 350 | 5提取+4新增，每个工具有 schema+execute |
+| P1-5 | `agent/prompts.ts` | 150 | buildSystemPrompt(role) — 七段式拼接 |
+| P1-6 | `agent/loop.ts` | 200 | ReAct 5轮+hash循环检测+30s超时→重试→降级 |
+| P1-7 | `middleware.ts` + `route.ts` | +5/-564 | role/personId 注入 + 薄层 handler |
+
+**Phase 1 产出**: 娜娜吉能动 — ReAct 多轮、六段式 Prompt、guest/admin 双通道。面试官打开网站看到一个真正的 Agent。
+
+### Phase 2: Storage Foundation
+
+```
+#30 P2-1 lib/store.ts → #31 P2-2 LevelDB初始化 → #32 P2-3 Loop接入存储
+```
+
+| 任务 | 文件 | 行数 | 产出 |
+|------|------|------|------|
+| P2-1 | `lib/store.ts` | 120 | 统一数据接口 — admin→fs, guest→LevelDB |
+| P2-2 | `lib/leveldb.ts` + `data/` | 60 | classic-level 六表建库 (user/iwm/mem/emo/conv/feedback) |
+| P2-3 | `agent/loop.ts` 改造 | 80 | Step 10 后处理接入 store.ts |
+
+**Phase 2 产出**: 三层分级存储落地 — NaNaGi 本体文件系统 / 主人文件系统 / guest LevelDB。
+
+### Phase 3: Auth & Registration
+
+```
+#33 P3-1 注册API+IWM初始化 → #34 P3-2 登录改造 → #35 P3-3 前端UI
+```
+
+| 任务 | 文件 | 行数 | 产出 |
+|------|------|------|------|
+| P3-1 | `app/api/auth/register/` + `personality/iwm-init.ts` | 60 | 引导式注册 → personId + IWM Cold Start |
+| P3-2 | `app/api/auth/route.ts` | 40 | personId+password → O(1) LevelDB 查 → JWT |
+| P3-3 | `components/AuthForm.tsx` + `AgentDialog.tsx` | 120 | 三步注册表单 + 登录界面 |
+
+**Phase 3 产出**: 注册即 Cold Start — 表单直接映射 IWM Node 初始化。
+
+### Phase 4: Cell System
+
+```
+#36 P4-1 Cell模型+CRUD → #37 P4-2 Cell列表前端 → #38 P4-3 Cell切换+持久化
+```
+
+| 任务 | 文件 | 行数 | 产出 |
+|------|------|------|------|
+| P4-1 | `lib/cell-store.ts` | 100 | CellRecord(messages[]) + LevelDB conv 表 CRUD |
+| P4-2 | `components/CellList.tsx` | 100 | 左侧 Cell 列表 — 按时间倒序, 点击切换 |
+| P4-3 | `contexts/ChatContext.tsx` 改造 | 120 | cellId 状态管理 + 消息自动持久化 |
+
+**Phase 4 产出**: ChatGPT 同款 Cell 隔离 — 完整消息存储、跨 Cell 上下文隔离。
+
+### Phase 5: Personality Engine `🔥 差异化核心`
+
+```
+#39 P5-1 personality/types.ts (180行)
+         │
+         ├── #40 P5-2 graph.ts — 社交图引擎 (150行)
+         ├── #41 P5-3 emotion.ts — OCC情绪引擎 (150行)
+         ├── #42 P5-4 ambient-context.ts — 环境感知 (120行)
+         ├── #43 P5-5 signals.ts — 外部信号提取 (100行)
+         ├── #44 P5-6 planning.ts — SIP社交规划 (120行)
+         ├── #45 P5-7 filter.ts — 人格过滤层 (80行)
+         ├── #46 P5-8 inner-voice.ts — 内心独白 (100行)
+         ├── #47 P5-9 memory-inner.ts — 隐形记忆 (60行)
+         │
+         └──→ #48 P5-10 人格引擎接入Agent Loop (80行)
+```
+
+| 任务 | 文件 | 行数 | 学术引用 |
+|------|------|------|---------|
+| P5-1 | `personality/types.ts` | 180 | SelfNode[15], IWMNode[1][3], EmotionState[6][7], AmbientContext, PersonaParameters[5], SocialPlan[11] |
+| P5-2 | `personality/graph.ts` | 150 | Bowlby IWM[1][2][3] + Heider[4] + GraphSAGE[19] |
+| P5-3 | `personality/emotion.ts` | 150 | OCC[8] + LeDoux[9] + McEwen[10] + Gross[12] |
+| P5-4 | `personality/ambient-context.ts` | 120 | PAD[6] + Plutchik[7] |
+| P5-5 | `personality/signals.ts` | 100 | ToM[13] — 确定性规则引擎, 不经 LLM |
+| P5-6 | `personality/planning.ts` | 120 | Crick&Dodge SIP[11] + Gross[12] |
+| P5-7 | `personality/filter.ts` | 80 | Jung Persona[5] — 确定性映射, 不经 LLM |
+| P5-8 | `personality/inner-voice.ts` | 100 | LeDoux 高通路[9] |
+| P5-9 | `personality/memory-inner.ts` | 60 | — |
+| P5-10 | `agent/loop.ts` + `agent/prompts.ts` 改造 | 80 | 全引擎接入: Step1-8 串联 |
+
+**Phase 5 产出**: 完整数字人格 — 社交图 + 情绪引擎 + 环境感知 + 社交规划 + 内心独白。
+
+### Phase 6: Interview Feedback
+
+| 任务 | 文件 | 行数 | 产出 |
+|------|------|------|------|
+| P6-1 | `agent/loop.ts` 改造 | 60 | guest-iv 对话结束 → 检测评价/岗位信号 → 追加 feedback |
+| P6-2 | `agent/tools/search-guests.ts` + `get-feedback.ts` | 80 | admin 专属工具: 列出最近访客 + 查看反馈 |
+| P6-3 | `components/MemoryPanel.tsx` 改造 | 100 | 新增「💭 内心」Tab + 「📊 反馈」Tab (仅 admin) |
+
+### Phase 7: Knowledge Base
+
+| 任务 | 文件 | 行数 | 产出 |
+|------|------|------|------|
+| P7 | `lib/projects.ts` + 展厅组件 | 200 | 三个展厅结构化数据 — Agent 能回答项目问题 |
+
+### Phase 8: Deployment & Polish
+
+| 任务 | 产出 |
+|------|------|
+| P8 | 性能量化(TTFT+延迟+成功率) + 并发设计文档 + 腾讯云部署 + 技术博客 + 双通道对比demo |
+
+### 依赖链总览
+
+```
+P1 (Agent Engine) ──→ P2 (Storage) ──→ P3 (Auth) ──→ P4 (Cell)
+                         │                                 │
+                         └──→ P5 (Personality) ←───────────┘
+                                  │
+                                  └──→ P6 (Feedback)
+
+P7 (Knowledge Base) ← 独立，随时可做
+P8 (Deploy) ← P1 完成后即可开始准备
+```
+
+### 总规模估算
+
+| Phase | 任务数 | 新代码(行) | 重构(行) | 累计(行) |
+|-------|--------|-----------|----------|---------|
+| P1: Agent Engine | 7 | ~940 | -564 | ~1,500 |
+| P2: Storage | 3 | ~260 | ~80 | ~1,840 |
+| P3: Auth | 3 | ~220 | — | ~2,060 |
+| P4: Cell | 3 | ~320 | ~120 | ~2,500 |
+| P5: Personality | 10 | ~1,140 | ~80 | ~3,720 |
+| P6: Feedback | 3 | ~240 | — | ~3,960 |
+| P7: Knowledge | 1 | ~200 | — | ~4,160 |
+| P8: Deploy | 1 | — | — | — |
+| **总计** | **31** | **~3,320** | **~120** | **~4,160** |
+
 ---
 
 ## 文件结构
