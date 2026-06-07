@@ -1528,6 +1528,119 @@ D:/NanAgi/
 
 ---
 
+## 完整文件清单 (P4 当前状态)
+
+> 每个文件的职责分析，用于目录结构决策。
+
+### `src/agent/` — Agent 机械层
+
+| 文件 | 职责 | 依赖 |
+|------|------|------|
+| `types.ts` | Agent 核心类型: ToolCall, AgentContext, LoopState 等 | 无 |
+| `registry.ts` | 工具注册表: Map<name, {definition, execute}> | types.ts |
+| `loop.ts` | ReAct 循环引擎: 5轮+hash检测+三层容灾+DeepSeek SSE解析 | types, prompts, registry, lib/env |
+| `prompts.ts` | System Prompt 七段式拼接: 角色/人格/关系/记忆/工具/准则/上下文 | types, registry, configs |
+| `tools/index.ts` | 工具统一入口: import 即注册 | 所有工具文件 |
+| `tools/get-time.ts` | 本地时间查询 | registry |
+| `tools/get-weather.ts` | 和风天气查询 | registry, lib/env |
+| `tools/get-project-info.ts` | 项目信息查询 (读 lib/projects.ts) | registry, lib/projects |
+| `tools/search-memory.ts` | 显性记忆关键词搜索 | registry, lib/memory |
+| `tools/save-memory.ts` | 主动记忆保存 (admin→fs, guest→LevelDB) | registry, lib/memory, lib/store |
+| `tools/generate-image.ts` | 混元生图 + SSE jukebox | registry, lib/hunyuan |
+| `tools/navigate-project.ts` | SSE navigate → 跳转展厅 | registry |
+| `tools/gnn-recommend.ts` | GNN 推荐 (占位) | registry |
+| `tools/cnnmusic-search.ts` | CnnMusic 检索 (占位) | registry |
+
+### `src/personality/` — 数字人格层
+
+| 文件 | 职责 | 依赖 |
+|------|------|------|
+| `configs/guest.ts` | 面试官通道参数: 角色/情绪钳制/预设目标/Gross策略/行为准则 | agent/types |
+| `configs/admin.ts` | 主人通道参数: 0义务/拒绝权/真实表达 | agent/types |
+| `iwm-init.ts` | 注册表单 → IWM Node 冷启动 | lib/leveldb |
+
+### `src/lib/` — 共享基础设施
+
+| 文件 | 职责 | 分类 |
+|------|------|------|
+| `types.ts` | SSE 事件类型 + Message + JukeboxState (前端 + 后端共用) | 类型 |
+| `auth.ts` | JWT 签发/验证 + 双密码 bcrypt + Cookie 管理 | 🔐 鉴权 |
+| `env.ts` | 安全配置中心: 所有 API Key 唯一出口, `import "server-only"` | 🔐 配置 |
+| `email.ts` | SMTP 邮件发送 (nodemailer) + 验证码存储 (内存Map, 5min TTL) | 📧 邮件 |
+| `ambient.ts` | 环境感知: 时间(7段+季节+节假日) + IP定位(ip-api) + 天气(和风,1h+24h缓存) | 🌤 环境 |
+| `leveldb.ts` | 文件系统 K-V 存储引擎: 六表schema, 用户子目录隔离, 全局查询 | 💾 存储 |
+| `store.ts` | 统一数据访问层: admin→文件系统, guest→LevelDB, 内部路由 | 💾 存储 |
+| `memory.ts` | 显性记忆 CRUD: 文件系统 YAML frontmatter (V2.5, 保留给 admin) | 💾 存储 |
+| `hunyuan.ts` | 腾讯混元生图 API: async submit + 轮询 query | 🎨 外部API |
+| `projects.ts` | 项目元数据: 3个项目 (GNN/CnnMusic/FruitCNN) | 📋 数据 |
+
+### `src/components/` — UI 组件
+
+| 文件 | 职责 | 分类 |
+|------|------|------|
+| `AgentDialog.tsx` | 首页全屏对话: 登录/注册/聊天/Cell 集成 | 🖥 聊天 |
+| `AgentWidget.tsx` | 项目页右下角浮动聊天 FAB | 🖥 聊天 |
+| `ChatMessage.tsx` | 消息气泡: agent/user, 图片渲染, streaming动画 | 🖥 聊天 |
+| `ChatInput.tsx` | 聊天输入框: Enter发送 | 🖥 聊天 |
+| `AuthForm.tsx` | 引导式注册/登录: 三步注册+验证码+邮箱登录 | 🔐 鉴权 |
+| `CellList.tsx` | 对话列表滑出面板: 置顶/重命名/删除/切换 | 📋 Cell |
+| `MemoryPanel.tsx` | 记忆库滑出面板: 卡片列表/详情弹窗/删除 | 📋 记忆 |
+| `PageShell.tsx` | 页面布局壳: usePathname 判断首页/项目页 | 📐 布局 |
+| `RecordPlayer.tsx` | 唱片机: 拖拽识别动画 (项目展厅) | 🎵 项目 |
+| `DraggableImage.tsx` | 可拖拽图片: Portal克隆+磁吸回弹 | 🎵 项目 |
+
+### `src/contexts/` — React 状态管理
+
+| 文件 | 职责 |
+|------|------|
+| `ChatContext.tsx` | 全局状态: 消息/auth/jukebox/modelResult/cell/memory/面板互斥 |
+
+### `src/app/` — Next.js 路由
+
+| 文件 | 职责 | 分类 |
+|------|------|------|
+| `api/auth/route.ts` | 登录: admin密码 / guest email+password | 🔐 鉴权 |
+| `api/auth/register/route.ts` | 注册: 邮箱验证码+格式验证+一次性邮箱拦截+拼写纠错 | 🔐 鉴权 |
+| `api/auth/send-code/route.ts` | 发送邮箱验证码 | 📧 邮件 |
+| `api/chat/route.ts` | 聊天核心: 认证→环境感知→AgentContext→agentLoop→Cell持久化→IWM | 🤖 Agent |
+| `api/cells/route.ts` | Cell CRUD: GET列表 / POST创建 | 📋 Cell |
+| `api/cells/[cellId]/route.ts` | Cell 操作: PATCH重命名+置顶 / DELETE删除 | 📋 Cell |
+| `api/cells/[cellId]/messages/route.ts` | Cell 消息: GET历史 / PUT保存 | 📋 Cell |
+| `api/memory/route.ts` | 记忆 CRUD: GET列表(按role过滤) / POST创建 | 📋 记忆 |
+| `api/memory/[slug]/route.ts` | 记忆操作: GET详情(仅admin) / DELETE(admin+guest自己) | 📋 记忆 |
+| `layout.tsx` | 根布局: ChatProvider + PageShell | 📐 布局 |
+| `page.tsx` | 首页: AgentDialog | 📐 布局 |
+| `globals.css` | 三风格设计系统 + Memory/Cell 面板动画 | 🎨 样式 |
+| `projects/[slug]/page.tsx` | 项目页 SSG | 🎵 项目 |
+| `projects/[slug]/ProjectExhibition.tsx` | 项目展厅: 唱片机+指标卡 | 🎵 项目 |
+| `projects/[slug]/ProjectPageClient.tsx` | 项目上下文注册 | 🎵 项目 |
+| `middleware.ts` | JWT 验证 + role/personId header 注入 | 🔐 鉴权 |
+
+### 分类统计
+
+```
+分类           文件数   目录
+────────────────────────────────
+🤖 Agent 引擎    14     agent/
+🔐 鉴权          6      lib/auth, lib/env, middleware, api/auth/*(3), components/AuthForm
+💾 存储          3      lib/{leveldb,store,memory}
+📋 Cell         4      api/cells/*(3), components/CellList
+📋 记忆         3      api/memory/*(2), components/MemoryPanel
+📧 邮件          2      lib/email, api/auth/send-code
+🌤 环境          1      lib/ambient
+🎨 外部API       2      lib/{hunyuan,projects}
+🖥 聊天          4      components/{AgentDialog,AgentWidget,ChatMessage,ChatInput}
+🎵 项目          5      app/projects/*(3), components/{RecordPlayer,DraggableImage}
+📐 布局          3      components/PageShell, app/{layout,page}
+🎨 样式          1      globals.css
+📋 数据          1      lib/projects
+📋 类型          2      lib/types, agent/types
+────────────────────────────────
+总计            51      (含 middleware.ts + ChatContext.tsx)
+```
+
+---
+
 ## 技术栈
 
 | 层 | 技术 |
