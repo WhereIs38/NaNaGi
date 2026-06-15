@@ -2,7 +2,7 @@
 
 # NaNaGi（ななぎ）
 
-**南志锦的个人 AI 作品集网站。一个双人格关系型 Agent——不是帮你做事的工具，有情绪，有灵魂，有工作效率的人性化Agent。**
+**南志锦的个人 AI 作品集网站。一个双人格关系型 Agent——不是帮你做事的工具，而是有情绪，有灵魂，有工作效率的人性化Agent。**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=nextdotjs)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript)](https://typescriptlang.org)
