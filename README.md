@@ -2,7 +2,7 @@
 
 # NaNaGi（ななぎ）
 
-**南志锦的个人 AI 作品集网站。一个基于社交图 (Social Graph) 的关系型 Agent——不是帮你做事的工具，而是知道你是谁、记得你什么样、对不同的人不同对待的数字人格系统。**
+**南志锦的个人 AI 作品集网站。一个双人格关系型 Agent——不是帮你做事的工具，有情绪，有灵魂，有工作效率的人性化Agent。**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=nextdotjs)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript)](https://typescriptlang.org)
