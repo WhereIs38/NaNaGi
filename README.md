@@ -1,6 +1,22 @@
+<div align="center">
+
 # NaNaGi（ななぎ）
 
 **南志锦的个人 AI 作品集网站。一个基于社交图 (Social Graph) 的关系型 Agent——不是帮你做事的工具，而是知道你是谁、记得你什么样、对不同的人不同对待的数字人格系统。**
+
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=nextdotjs)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript)](https://typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react)](https://react.dev)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-V4_Pro-4B6BFB.svg)](https://deepseek.com)
+[![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4.svg?logo=tailwindcss)](https://tailwindcss.com)
+[![LevelDB](https://img.shields.io/badge/LevelDB-embedded-43A047.svg)](https://github.com/google/leveldb)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker)](https://docker.com)
+[![License](https://img.shields.io/badge/License-Private-red.svg)]()
+
+📐 [ENGINEERING_FRAMEWORK.md](./ENGINEERING_FRAMEWORK.md) — 架构设计书（ETCLOVG 七层诊断）
+🗺 [ROADMAP_V52.md](./ROADMAP_V52.md) — 完整系统蓝图（远期规划）
+
+</div>
 
 ---
 
