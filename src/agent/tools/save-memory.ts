@@ -1,12 +1,11 @@
 // ============================================================
 // NaNaGi Agent 工具 — save_memory
 // 主动保存记忆 — NaNaGi 判断"这个值得记"时自主调用
-// admin → 文件系统 / guest → LevelDB
+// 统一走 store.createMemory() → admin: data/admin/memories/ | guest: LevelDB
 // ============================================================
 
 import { registerTool } from "../registry";
 import type { ToolResult, AgentContext } from "../types";
-import { createMemory as fsCreateMemory } from "@/lib/memory";
 import type { MemoryType } from "@/lib/memory";
 
 registerTool({
@@ -52,35 +51,21 @@ registerTool({
     const ts = new Date().toISOString();
 
     try {
-      // admin → 文件系统 / guest → LevelDB
-      if (ctx.role !== "admin") {
-        const store = await import("@/lib/store");
-        await store.createMemory({
-          slug: `mem-${Date.now()}`,
-          personId: ctx.personId,
-          meta: {
-            name: `mem-${Date.now()}`,
-            description: desc,
-            type: memType as MemoryType,
-            tags: tags.length > 0 ? tags : [],
-            createdAt: ts,
-          },
-          content: memContent,
-          summary: desc,
-          keywords: tags,
-        });
-      } else {
-        const slug = `mem-${Date.now()}`;
-        await fsCreateMemory(
-          {
-            name: slug,
-            description: desc,
-            type: memType as MemoryType,
-            tags: tags.length > 0 ? tags : undefined,
-          },
-          memContent
-        );
-      }
+      const store = await import("@/lib/store");
+      await store.createMemory({
+        slug: `mem-${Date.now()}`,
+        personId: ctx.personId,
+        meta: {
+          name: `mem-${Date.now()}`,
+          description: desc,
+          type: memType as MemoryType,
+          tags: tags.length > 0 ? tags : [],
+          createdAt: ts,
+        },
+        content: memContent,
+        summary: desc,
+        keywords: tags,
+      });
 
       return {
         tool_call_id: "",

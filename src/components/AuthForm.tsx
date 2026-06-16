@@ -8,12 +8,15 @@ interface AuthFormProps {
 }
 
 export default function AuthForm({ onLogin, loading }: AuthFormProps) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "admin">("login");
   const [step, setStep] = useState<0 | 1 | 2>(0);
 
   // 登录
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+
+  // 管理员登录
+  const [adminPassword, setAdminPassword] = useState("");
 
   // 注册
   const [regEmail, setRegEmail] = useState("");

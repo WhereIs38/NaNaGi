@@ -75,6 +75,20 @@ export async function putNode(node: IWMNode): Promise<void> {
 
 // ==================== Memory ====================
 
+function parseFrontmatter(raw: string): { meta: { description?: string; type?: string; tags?: string[]; createdAt?: string }; content: string } | null {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (!match) return null;
+  const meta: Record<string, string | string[]> = {};
+  for (const line of match[1].split("\n")) {
+    const m = line.match(/^(\w+):\s*(.+)$/);
+    if (m) {
+      const val = m[2].trim();
+      meta[m[1]] = val.startsWith("[") ? val.replace(/^\[|\]$/g, "").split(",").map(s => s.trim()).filter(Boolean) : val;
+    }
+  }
+  return { meta: meta as { description?: string; type?: string; tags?: string[]; createdAt?: string }, content: match[2].trim() };
+}
+
 export async function createMemory(record: MemoryRecord): Promise<void> {
   if (record.personId === "nanzhijin") {
     const dir = path.join(ADMIN_DIR, "memories");
@@ -89,26 +103,84 @@ export async function createMemory(record: MemoryRecord): Promise<void> {
 
 export async function listMemories(personId: string): Promise<MemoryRecord[]> {
   if (personId === "nanzhijin") {
-    // 保持现有文件系统逻辑 — lib/memory.ts 处理
-    // store.ts 不重复实现, 调现有 API
-    const { listMemories: fsListMemories } = await import("./memory");
-    const entries = await fsListMemories();
-    return entries.map((e) => ({
-      slug: e.slug,
-      personId: "nanzhijin",
-      meta: {
-        name: e.meta.name,
-        description: e.meta.description,
-        type: e.meta.type,
-        tags: e.meta.tags || [],
-        createdAt: e.meta.createdAt || e.updatedAt,
-      },
-      content: e.content,
-      summary: "",
-      keywords: [],
-    }));
+    // 直接读 data/admin/memories/ — 不再委托 lib/memory.ts
+    const dir = path.join(ADMIN_DIR, "memories");
+    await ensureDir(dir);
+    const records: MemoryRecord[] = [];
+    try {
+      const files = await fs.readdir(dir);
+      for (const file of files) {
+        if (!file.endsWith(".md")) continue;
+        const raw = await fs.readFile(path.join(dir, file), "utf-8");
+        const parsed = parseFrontmatter(raw);
+        if (parsed) {
+          records.push({
+            slug: file.replace(/\.md$/, ""),
+            personId: "nanzhijin",
+            meta: {
+              name: file.replace(/\.md$/, ""),
+              description: parsed.meta.description || "",
+              type: (parsed.meta.type as MemoryRecord["meta"]["type"]) || "impression",
+              tags: parsed.meta.tags || [],
+              createdAt: parsed.meta.createdAt || "",
+            },
+            content: parsed.content,
+            summary: parsed.meta.description || "",
+            keywords: parsed.meta.tags || [],
+          });
+        }
+      }
+    } catch {
+      // 目录为空或不存在 → 返回空
+    }
+    records.sort((a, b) => (b.meta.createdAt || "").localeCompare(a.meta.createdAt || ""));
+    return records;
   }
   return levelListMemories(personId);
+}
+
+export async function getMemory(personId: string, slug: string): Promise<MemoryRecord | null> {
+  if (personId === "nanzhijin") {
+    const fp = path.join(ADMIN_DIR, "memories", `${slug}.md`);
+    try {
+      const raw = await fs.readFile(fp, "utf-8");
+      const parsed = parseFrontmatter(raw);
+      if (!parsed) return null;
+      return {
+        slug,
+        personId: "nanzhijin",
+        meta: {
+          name: slug,
+          description: parsed.meta.description || "",
+          type: (parsed.meta.type as MemoryRecord["meta"]["type"]) || "impression",
+          tags: parsed.meta.tags || [],
+          createdAt: parsed.meta.createdAt || "",
+        },
+        content: parsed.content,
+        summary: parsed.meta.description || "",
+        keywords: parsed.meta.tags || [],
+      };
+    } catch { return null; }
+  }
+  // guest: 读 LevelDB JSON
+  try {
+    const fp = path.join(process.cwd(), "data", "leveldb", personId, "memories", `${slug}.json`);
+    return JSON.parse(await fs.readFile(fp, "utf-8")) as MemoryRecord;
+  } catch { return null; }
+}
+
+export async function deleteMemory(personId: string, slug: string): Promise<boolean> {
+  if (personId === "nanzhijin") {
+    try {
+      await fs.unlink(path.join(ADMIN_DIR, "memories", `${slug}.md`));
+      return true;
+    } catch { return false; }
+  }
+  // guest: 删 LevelDB JSON
+  try {
+    await fs.unlink(path.join(process.cwd(), "data", "leveldb", personId, "memories", `${slug}.json`));
+    return true;
+  } catch { return false; }
 }
 
 // ==================== User ====================

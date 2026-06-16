@@ -13,8 +13,32 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-Private-red.svg)]()
 
-📐 [ENGINEERING_FRAMEWORK.md](./ENGINEERING_FRAMEWORK.md) — 架构设计书（ETCLOVG 七层诊断）
-🗺 [ROADMAP_V52.md](./ROADMAP_V52.md) — 完整系统蓝图（远期规划）
+### 📁 项目设计文档
+
+<details>
+<summary><b>🏗 Prompt + Context + Harness 工程架构（V1）</b></summary>
+
+- 📐 [Harness工程化架构设计](./项目设计文档/Prompt%2Bcontext%2Bharness工程架构设计迭代V1/Harness工程化架构设计.md) — ETCLOVG 七层诊断 + 关系型 Agent 特化
+- 🗺 [系统架构路线图 v5.2](./项目设计文档/Prompt%2Bcontext%2Bharness工程架构设计迭代V1/系统架构路线图v52.md) — 完整系统蓝图（远期规划）
+
+</details>
+
+<details>
+<summary><b>🧠 记忆系统设计（V2 → V3）</b></summary>
+
+**V2 — 格式统一 + 检索架构 + 监督机制**
+- 🔍 [记忆路径审计报告](./项目设计文档/记忆系统设计V2方案/记忆路径审计报告.md) — 读写断裂诊断（已修复）
+- 📝 [记忆检索设计论证](./项目设计文档/记忆系统设计V2方案/记忆检索设计论证.md) — frontmatter · MEMORY.md 索引 · [[关联]] 图遍历 · 截断规则
+- 🛡 [关联检索监督机制论证](./项目设计文档/记忆系统设计V2方案/关联检索监督机制论证.md) — 三层 Supervisor 防隧道视野（Drift / Critic / Trajectory）
+- 📘 [记忆系统设计完整方案](./项目设计文档/记忆系统设计V2方案/记忆系统设计完整方案.md) — V2 合并终稿（Part A 检索 + Part B 监督）
+
+**V3 — 分级架构 + 双人格双路 + 读写分离**
+- 🏛 [记忆系统分级架构方案](./项目设计文档/记忆系统设计V3方案/记忆系统分级架构方案.md) — L1(热)/L2(温)/L3(冷) 三级 + RAG 检索循环 + 上下文压缩
+- 🔀 [双人格双路检索与读写分离设计](./项目设计文档/记忆系统设计V3方案/双人格双路检索与读写分离设计.md) — companion(SIM-RAG) / worker(IterResearch) + 写入文件(Letta) / 读取向量(Mem0)
+
+</details>
+
+- 📋 [代码目录结构](./项目设计文档/代码目录结构.md) — 工程文件组织
 
 </div>
 

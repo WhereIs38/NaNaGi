@@ -4,8 +4,7 @@
 // ============================================================
 
 import { registerTool } from "../registry";
-import type { ToolResult } from "../types";
-import { listMemories } from "@/lib/memory";
+import type { ToolResult, AgentContext } from "../types";
 
 registerTool({
   definition: {
@@ -29,12 +28,13 @@ registerTool({
     },
   },
 
-  async execute(args): Promise<ToolResult> {
+  async execute(args, ctx: AgentContext): Promise<ToolResult> {
     const query = (args.query as string).toLowerCase();
     const topK = (args.top_k as number) || 5;
 
     try {
-      const all = await listMemories();
+      const { listMemories } = await import("@/lib/store");
+      const all = await listMemories(ctx.personId);
       if (all.length === 0) {
         return { tool_call_id: "", content: "目前还没有任何记忆呢～" };
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMemory, deleteMemory } from "@/lib/memory";
+import { getMemory, deleteMemory } from "@/lib/store";
 import { getAuthCookie, verifyToken } from "@/lib/auth";
 
 async function getAuth(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: "仅管理员可查看" }, { status: 403 });
     }
     const { slug } = await params;
-    const entry = await getMemory(slug);
+    const entry = await getMemory(auth.personId, slug);
     if (!entry) return NextResponse.json({ error: "记忆未找到" }, { status: 404 });
     return NextResponse.json(entry);
   } catch (err) {
@@ -39,14 +39,14 @@ export async function DELETE(
 
     const { slug } = await params;
 
-    // admin: 删除文件系统记忆
+    // admin: 删除 data/admin/memories/ 下的记忆
     if (auth.role === "admin") {
-      const ok = await deleteMemory(slug);
+      const ok = await deleteMemory(auth.personId, slug);
       if (!ok) return NextResponse.json({ error: "记忆未找到" }, { status: 404 });
       return NextResponse.json({ success: true });
     }
 
-    // guest: 删除自己的 LevelDB 记忆 (slug 即文件名, 如 2026-06-07T...json)
+    // guest: 删除自己的 LevelDB 记忆 (保持原有逻辑)
     const fs = await import("fs/promises");
     const path = await import("path");
     const memDir = path.join(process.cwd(), "data", "leveldb", auth.personId, "memories");

@@ -10,7 +10,7 @@ import { buildSystemPrompt } from "@/agent/prompts";
 import { guestConfig } from "@/personality/configs/guest";
 import { adminConfig } from "@/personality/configs/admin";
 import { getAmbient } from "@/lib/ambient";
-import { listMemories, createMemory, type MemoryType } from "@/lib/memory";
+import { type MemoryType } from "@/lib/memory";
 import { getNode, putNode, createMemory as storeCreateMemory, getCell, putCell } from "@/lib/store";
 import type { CellRecord } from "@/lib/leveldb";
 import type { MemoryRecord, IWMNode } from "@/lib/leveldb";
@@ -21,14 +21,11 @@ import "@/agent/tools";
 
 // ==================== 记忆上下文 (保留现有逻辑) ====================
 
-async function buildMemoryContext(personId: string, role: string): Promise<string> {
+async function buildMemoryContext(personId: string): Promise<string> {
   try {
-    // admin: 读取所有历史记忆 (文件系统 + LevelDB)
-    // guest: 只读取该用户自己的记忆 (LevelDB, 按 personId 过滤)
-    // admin: 读取所有历史记忆 / guest: 只读自己的
-    const rawMemories = role === "admin"
-      ? await listMemories()
-      : await (await import("@/lib/store")).listMemories(personId);
+    // 统一走 store.listMemories — admin → data/admin/memories/ | guest → LevelDB
+    const { listMemories: storeList } = await import("@/lib/store");
+    const rawMemories = await storeList(personId);
 
     const memories = rawMemories.map((m) => ({
       meta: { type: m.meta.type, description: m.meta.description },
@@ -107,7 +104,7 @@ export async function POST(request: NextRequest) {
   const { messages = [], project, cellId } = body;
   console.log("[Chat] cellId:", cellId, "personId:", personId);
 
-  const memoryContext = await buildMemoryContext(personId, role);
+  const memoryContext = await buildMemoryContext(personId);
 
   const ctx: AgentContext = {
     personId,

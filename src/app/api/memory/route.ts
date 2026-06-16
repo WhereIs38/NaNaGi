@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listMemories, createMemory } from "@/lib/memory";
+import { listMemories, createMemory } from "@/lib/store";
 import type { MemoryMeta } from "@/lib/memory";
 import { getAuthCookie, verifyToken } from "@/lib/auth";
 
@@ -22,10 +22,8 @@ export async function GET(request: NextRequest) {
   try {
     const { role, personId } = await getAuth(request);
 
-    // admin: 读取所有历史记忆 / guest: 只读自己的
-    const memories = role === "admin"
-      ? await listMemories()
-      : await (await import("@/lib/store")).listMemories(personId);
+    // 统一走 store.listMemories — admin → data/admin/memories/ | guest → LevelDB
+    const memories = await listMemories(personId);
 
     const brief = memories.map(({ slug, meta, content }) => ({
       slug,
@@ -52,28 +50,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // guest: 写入 LevelDB / admin: 写入文件系统
-    if (role !== "admin") {
-      const store = await import("@/lib/store");
-      await store.createMemory({
-        slug: meta.name,
-        personId,
-        meta: {
-          name: meta.name,
-          description: meta.description,
-          type: meta.type,
-          tags: meta.tags || [],
-          createdAt: new Date().toISOString(),
-        },
-        content,
-        summary: meta.description,
-        keywords: [],
-      });
-      return NextResponse.json({ success: true }, { status: 201 });
-    }
-
-    const entry = await createMemory(meta, content);
-    return NextResponse.json(entry, { status: 201 });
+    // 统一走 store.createMemory — admin → data/admin/memories/ | guest → LevelDB
+    await createMemory({
+      slug: meta.name,
+      personId,
+      meta: {
+        name: meta.name,
+        description: meta.description,
+        type: meta.type,
+        tags: meta.tags || [],
+        createdAt: new Date().toISOString(),
+      },
+      content,
+      summary: meta.description,
+      keywords: [],
+    });
+    return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
     console.error("[Memory] POST error:", err);
     return NextResponse.json({ error: "创建记忆失败" }, { status: 500 });
