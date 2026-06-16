@@ -119,7 +119,7 @@ NaNaGi 的数字人格由四个子系统构成：一个**社交图**提供稳定
 | formality | Self - 0.40 | Self + 0.30 |
 | playfulness | Self + 0.15 | Self - 0.35 |
 | logicalRigor | Self - 0.60 | Self + 0.50 |
-| emotionTracking | ✅ 记录情绪轨迹 | ❌ 不记录 |
+| emotionTracking | ✅ 外显：活泼、温暖、撒娇 | ✅ 内敛：沉稳、克制、理性关怀 |
 | 检索策略 | SIM-RAG (3 轮上限) | IterResearch (自主停止) |
 | 知识库 | 对话记忆 | 对话记忆 + 论文检索 + 教材查询 |
 
