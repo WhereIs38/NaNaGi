@@ -63,16 +63,29 @@ npm run dev
 # → http://localhost:3000
 ```
 
-### 环境变量说明
+### 创建 `.env.local`
 
-`.env.example` 已预填 SMTP（邮箱验证码），fork 之后只需配一个东西：
+复制以下全部内容，**只把 3 个空着的 Key 填上**，其余已配好不用改：
 
-| 变量 | 必需？ | 用途 | 怎么获取 |
-|------|--------|------|----------|
-| `DEEPSEEK_API_KEY` | **必填** | AI 对话 | [platform.deepseek.com](https://platform.deepseek.com) → API Keys |
-| `HUNYUAN_API_KEY` | 可选 | AI 生图 | [腾讯混元](https://hunyuan.tencent.com) 控制台 |
-| `WEATHER_API_KEY` | 可选 | 天气感知 | [和风天气](https://dev.qweather.com) 控制台 |
-| `SMTP_*` | 已配好 | 邮箱验证码 | 无需修改，注册直接用 |
+```env
+# ===== 🔴 下面 3 个自己去申请，其余不用动 =====
+DEEPSEEK_API_KEY=                           # ← 必填！platform.deepseek.com → API Keys
+HUNYUAN_API_KEY=                            # ← 可选！hunyuan.tencent.com 控制台
+HUNYUAN_KEY_ID=                             # ← 可选！同上
+WEATHER_API_KEY=                            # ← 可选！dev.qweather.com 控制台
+WEATHER_API_HOST=                           # ← 可选！同上
+
+# ===== ⬜ 以下已配好，无需修改 =====
+NANAGI_PASSWORD_HASH=$2b$10$M6BB.S2nbK17ouomz2DfDuy9Gl1ltSO8khE8ODECvgu53HrMwo3eS
+NANAGI_ADMIN_PASSWORD_HASH=$2b$10$lxe2i8HMndSupJMG9qTCDOiSYr.8U4RiHn7EzZK2VxMDUW3eWVHXq
+SMTP_HOST=smtp.qq.com
+SMTP_PORT=465
+SMTP_USER=1661186826@qq.com
+SMTP_PASS=vuwxobbjtdsieajd
+SMTP_FROM=1661186826@qq.com
+```
+
+DeepSeek 注册即送免费额度，够用了。混元和天气不填也能正常聊天。
 
 ### Docker 一键启动
 
